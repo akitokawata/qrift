@@ -42,6 +42,18 @@ export default function Header() {
             QR作成
           </a>
           <Link
+            href="/pricing"
+            className="text-sm font-medium text-gray-600 hover:text-sky-600 transition-colors"
+          >
+            料金
+          </Link>
+          <Link
+            href="/blog"
+            className="text-sm font-medium text-gray-600 hover:text-sky-600 transition-colors"
+          >
+            ブログ
+          </Link>
+          <Link
             href="/login"
             className="text-sm font-medium text-gray-600 hover:text-sky-600 transition-colors"
           >
@@ -98,6 +110,20 @@ export default function Header() {
               >
                 QR作成
               </a>
+              <Link
+                href="/pricing"
+                onClick={() => setMobileOpen(false)}
+                className="text-base font-medium text-gray-700 hover:text-sky-600"
+              >
+                料金
+              </Link>
+              <Link
+                href="/blog"
+                onClick={() => setMobileOpen(false)}
+                className="text-base font-medium text-gray-700 hover:text-sky-600"
+              >
+                ブログ
+              </Link>
               <Link
                 href="/login"
                 onClick={() => setMobileOpen(false)}
