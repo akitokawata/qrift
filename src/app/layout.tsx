@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   description:
     "QRiftは無料でQRコードを生成できるサービス。動的QRコードでリンク先を後から変更、スキャン解析で効果測定も。印刷物を刷り直さずにキャンペーンを更新。",
   keywords: ["QRコード", "QRコード作成", "動的QRコード", "QRコード無料", "QRコード管理"],
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
   openGraph: {
     title: "QRift - QRコード作成・管理",
     description: "無料でQRコードを生成。動的QRコードでリンク先を後から変更可能。",

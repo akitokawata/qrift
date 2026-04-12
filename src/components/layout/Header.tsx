@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -24,8 +25,9 @@ export default function Header() {
       }`}
     >
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-extrabold tracking-tight">
-          <span className="gradient-text">QRift</span>
+        <Link href="/" className="flex items-center gap-2">
+          <Image src="/logo.png" alt="QRift" width={36} height={36} className="rounded-lg" />
+          <span className="text-2xl font-extrabold tracking-tight gradient-text">QRift</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
