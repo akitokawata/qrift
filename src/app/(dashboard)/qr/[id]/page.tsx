@@ -8,11 +8,12 @@ import QRCode from "qrcode";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Copy, Check, Download, ExternalLink, Edit3,
-  BarChart3, Smartphone, Monitor, Tablet, Calendar
+  BarChart3, Smartphone, Monitor, Tablet, Calendar, Lock, Crown
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from "recharts";
+import type { PlanType } from "@/lib/stripe";
 
 type QRCodeData = {
   id: string;
@@ -38,6 +39,7 @@ export default function QRDetailPage() {
   const [deviceStats, setDeviceStats] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentPlan, setCurrentPlan] = useState<PlanType>("free");
 
   useEffect(() => {
     loadData();
@@ -57,6 +59,19 @@ export default function QRDetailPage() {
     }
 
     setQr(qrData);
+
+    // プラン取得
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("plan_type")
+        .eq("user_id", user.id)
+        .single();
+      if (sub?.plan_type) {
+        setCurrentPlan(sub.plan_type as PlanType);
+      }
+    }
 
     // QR画像生成
     if (qrData.short_code) {
@@ -153,6 +168,8 @@ export default function QRDetailPage() {
 
   if (!qr) return null;
 
+  const isFreePlan = currentPlan === "free";
+
   return (
     <div className="max-w-4xl mx-auto">
       <Link
@@ -232,48 +249,90 @@ export default function QRDetailPage() {
           </div>
 
           {/* Chart */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">
-              スキャン推移（過去30日）
-            </h3>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyScans}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(val) => val.slice(5)}
-                    tick={{ fontSize: 10, fill: "#aaa" }}
-                  />
-                  <YAxis tick={{ fontSize: 10, fill: "#aaa" }} allowDecimals={false} />
-                  <Tooltip
-                    labelFormatter={(val) => val}
-                    formatter={(val) => [`${val} スキャン`]}
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                  />
-                  <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="relative">
+            {isFreePlan && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm rounded-xl">
+                <Lock className="w-8 h-8 text-gray-400 mb-2" />
+                <p className="text-sm font-semibold text-gray-600 mb-1">
+                  日別スキャン推移
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Starterプラン以上で利用可能
+                </p>
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-emerald-500 hover:shadow-lg transition-all"
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  アップグレード
+                </a>
+              </div>
+            )}
+            <div className={`bg-white rounded-xl border border-gray-100 p-5 ${isFreePlan ? "blur-sm pointer-events-none select-none" : ""}`}>
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">
+                スキャン推移（過去30日）
+              </h3>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyScans}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(val) => val.slice(5)}
+                      tick={{ fontSize: 10, fill: "#aaa" }}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: "#aaa" }} allowDecimals={false} />
+                    <Tooltip
+                      labelFormatter={(val) => val}
+                      formatter={(val) => [`${val} スキャン`]}
+                      contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    />
+                    <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
           {/* Device Stats */}
-          {Object.keys(deviceStats).length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="relative">
+            {isFreePlan && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm rounded-xl">
+                <Lock className="w-8 h-8 text-gray-400 mb-2" />
+                <p className="text-sm font-semibold text-gray-600 mb-1">
+                  デバイス別分析
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Starterプラン以上で利用可能
+                </p>
+                <a
+                  href="/pricing"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-emerald-500 hover:shadow-lg transition-all"
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  アップグレード
+                </a>
+              </div>
+            )}
+            <div className={`bg-white rounded-xl border border-gray-100 p-5 ${isFreePlan ? "blur-sm pointer-events-none select-none" : ""}`}>
               <h3 className="text-sm font-semibold text-gray-700 mb-4">デバイス別</h3>
               <div className="space-y-3">
-                {Object.entries(deviceStats).map(([device, count]) => (
-                  <div key={device} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      {deviceIcon(device)}
-                      <span className="capitalize">{device === "unknown" ? "その他" : device}</span>
+                {Object.keys(deviceStats).length > 0 ? (
+                  Object.entries(deviceStats).map(([device, count]) => (
+                    <div key={device} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        {deviceIcon(device)}
+                        <span className="capitalize">{device === "unknown" ? "その他" : device}</span>
+                      </div>
+                      <span className="text-sm font-semibold">{count}</span>
                     </div>
-                    <span className="text-sm font-semibold">{count}</span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-400">データなし</p>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

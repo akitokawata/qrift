@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import { PlusCircle, QrCode, BarChart3, ExternalLink, Copy, Check, Crown, CreditCard } from "lucide-react";
+import { PlusCircle, QrCode, BarChart3, ExternalLink, Copy, Check, Crown, CreditCard, AlertTriangle } from "lucide-react";
 import type { PlanType } from "@/lib/stripe";
+import { PLANS } from "@/lib/stripe";
 
 type QRCode = {
   id: string;
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanType>("free");
   const [portalLoading, setPortalLoading] = useState(false);
+  const [monthlyScans, setMonthlyScans] = useState(0);
   const supabase = createClient();
 
   useEffect(() => {
@@ -66,6 +68,27 @@ export default function DashboardPage() {
 
     if (sub?.plan_type) {
       setCurrentPlan(sub.plan_type as PlanType);
+    }
+
+    // 今月のスキャン数を取得
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+
+    const { data: userQRs } = await supabase
+      .from("qr_codes")
+      .select("id")
+      .eq("user_id", user.id);
+
+    if (userQRs && userQRs.length > 0) {
+      const qrIds = userQRs.map((q: { id: string }) => q.id);
+      const { count } = await supabase
+        .from("scan_logs")
+        .select("*", { count: "exact", head: true })
+        .in("qr_code_id", qrIds)
+        .gte("scanned_at", startOfMonth)
+        .lt("scanned_at", startOfNextMonth);
+      setMonthlyScans(count || 0);
     }
   }
 
@@ -115,6 +138,18 @@ export default function DashboardPage() {
   };
 
   const totalScans = qrCodes.reduce((sum, qr) => sum + (qr.scan_count || 0), 0);
+
+  const scanLimit = PLANS[currentPlan].limits.scansPerMonth;
+  const isUnlimited = scanLimit === -1;
+  const usagePercent = isUnlimited ? 0 : Math.min(Math.round((monthlyScans / scanLimit) * 100), 100);
+  const isNearLimit = !isUnlimited && usagePercent >= 80;
+  const isOverLimit = !isUnlimited && monthlyScans >= scanLimit;
+
+  const progressColor = isOverLimit
+    ? "bg-red-500"
+    : isNearLimit
+    ? "bg-orange-400"
+    : "bg-gradient-to-r from-sky-400 to-emerald-400";
 
   return (
     <div>
@@ -184,6 +219,81 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Monthly Scan Usage */}
+      <div className={`rounded-xl border p-5 mb-8 ${
+        isOverLimit
+          ? "bg-red-50 border-red-200"
+          : isNearLimit
+          ? "bg-orange-50 border-orange-200"
+          : "bg-white border-gray-100"
+      }`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 className={`w-4 h-4 ${
+              isOverLimit ? "text-red-500" : isNearLimit ? "text-orange-500" : "text-sky-500"
+            }`} />
+            <span className="text-sm font-semibold text-gray-700">
+              月間スキャン使用量
+            </span>
+          </div>
+          <span className="text-sm text-gray-500">
+            {isUnlimited ? (
+              <span className="text-emerald-600 font-semibold">無制限</span>
+            ) : (
+              <>
+                <span className={`font-bold ${isOverLimit ? "text-red-600" : isNearLimit ? "text-orange-600" : "text-gray-900"}`}>
+                  {monthlyScans.toLocaleString()}
+                </span>
+                {" / "}
+                {scanLimit.toLocaleString()}
+              </>
+            )}
+          </span>
+        </div>
+        {!isUnlimited && (
+          <>
+            <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
+                style={{ width: `${usagePercent}%` }}
+              />
+            </div>
+            {isOverLimit && (
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-semibold">
+                    スキャン上限に達しました。新しいスキャンは記録されません。
+                  </span>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-emerald-500 hover:shadow-lg transition-all"
+                >
+                  アップグレード
+                </Link>
+              </div>
+            )}
+            {isNearLimit && !isOverLimit && (
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2 text-orange-600">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-semibold">
+                    スキャン上限の80%に達しています
+                  </span>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-sky-500 to-emerald-500 hover:shadow-lg transition-all"
+                >
+                  アップグレード
+                </Link>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Header */}
