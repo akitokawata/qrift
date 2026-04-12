@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import { PlusCircle, QrCode, BarChart3, ExternalLink, Copy, Check } from "lucide-react";
+import { PlusCircle, QrCode, BarChart3, ExternalLink, Copy, Check, Crown, CreditCard } from "lucide-react";
+import type { PlanType } from "@/lib/stripe";
 
 type QRCode = {
   id: string;
@@ -17,15 +18,72 @@ type QRCode = {
   scan_count?: number;
 };
 
+const PLAN_LIMITS: Record<PlanType, number> = {
+  free: 3,
+  starter: 20,
+  business: 100,
+  pro: 500,
+};
+
+const PLAN_COLORS: Record<PlanType, string> = {
+  free: "bg-gray-100 text-gray-600",
+  starter: "bg-sky-50 text-sky-600 border border-sky-200",
+  business: "bg-cyan-50 text-cyan-600 border border-cyan-200",
+  pro: "bg-emerald-50 text-emerald-600 border border-emerald-200",
+};
+
+const PLAN_LABELS: Record<PlanType, string> = {
+  free: "Free",
+  starter: "Starter",
+  business: "Business",
+  pro: "Pro",
+};
+
 export default function DashboardPage() {
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<PlanType>("free");
+  const [portalLoading, setPortalLoading] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     loadQRCodes();
+    loadPlan();
   }, []);
+
+  async function loadPlan() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("plan_type")
+      .eq("user_id", user.id)
+      .single();
+
+    if (sub?.plan_type) {
+      setCurrentPlan(sub.plan_type as PlanType);
+    }
+  }
+
+  async function openCustomerPortal() {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/create-portal-session", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      // ignore
+    }
+    setPortalLoading(false);
+  }
 
   async function loadQRCodes() {
     const { data: codes } = await supabase
@@ -61,7 +119,7 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
@@ -89,8 +147,42 @@ export default function DashboardPage() {
           </div>
           <p className="text-3xl font-bold">
             {qrCodes.filter((q) => q.type === "dynamic").length}
-            <span className="text-sm font-normal text-gray-400 ml-1">/ 3</span>
+            <span className="text-sm font-normal text-gray-400 ml-1">/ {PLAN_LIMITS[currentPlan]}</span>
           </p>
+        </div>
+        {/* プランバッジ */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-lg bg-sky-50 flex items-center justify-center">
+              <Crown className="w-4 h-4 text-sky-500" />
+            </div>
+            <span className="text-sm text-gray-500">プラン</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 rounded-full text-sm font-bold ${PLAN_COLORS[currentPlan]}`}>
+              {PLAN_LABELS[currentPlan]}
+            </span>
+          </div>
+          <div className="mt-3">
+            {currentPlan === "free" ? (
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                アップグレード
+              </Link>
+            ) : (
+              <button
+                onClick={openCustomerPortal}
+                disabled={portalLoading}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                {portalLoading ? "読み込み中..." : "プラン管理"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

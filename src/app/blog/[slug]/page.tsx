@@ -7,6 +7,7 @@ import { getAllPosts, getPostBySlug } from "@/lib/blog";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import { ArrowLeft, Calendar, Tag, ArrowRight } from "lucide-react";
+import ShareButtons from "./ShareButtons";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -155,6 +156,9 @@ export default async function BlogPostPage({ params }: Props) {
               options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }}
             />
           </div>
+
+          {/* Share Buttons */}
+          <ShareButtons title={post.title} slug={slug} />
 
           {/* CTA */}
           <div className="mt-16 rounded-2xl bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 p-[1px]">

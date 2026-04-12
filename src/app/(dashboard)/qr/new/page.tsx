@@ -1,12 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { nanoid } from "nanoid";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
-import { Link2, Type, Loader2, Download, QrCode, Palette, RotateCcw } from "lucide-react";
+import { Link2, Type, Loader2, Download, QrCode, Palette, RotateCcw, Crown } from "lucide-react";
+import type { PlanType } from "@/lib/stripe";
+
+const PLAN_LIMITS: Record<PlanType, number> = {
+  free: 3,
+  starter: 20,
+  business: 100,
+  pro: 500,
+};
+
+const PLAN_LABELS: Record<PlanType, string> = {
+  free: "Free",
+  starter: "Starter",
+  business: "Business",
+  pro: "Pro",
+};
 
 const colorPresets = [
   { fg: "#000000", bg: "#ffffff", label: "ベーシック" },
@@ -26,8 +42,44 @@ export default function NewQRPage() {
   const [qrPreview, setQrPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [currentPlan, setCurrentPlan] = useState<PlanType>("free");
+  const [dynamicCount, setDynamicCount] = useState(0);
+  const [limitLoading, setLimitLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
+
+  const limit = PLAN_LIMITS[currentPlan];
+  const isAtLimit = dynamicCount >= limit;
+
+  useEffect(() => {
+    async function loadPlanAndCount() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // プランを取得
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("plan_type")
+        .eq("user_id", user.id)
+        .single();
+
+      const plan = (sub?.plan_type as PlanType) || "free";
+      setCurrentPlan(plan);
+
+      // 動的QR数をカウント
+      const { count } = await supabase
+        .from("qr_codes")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("type", "dynamic");
+
+      setDynamicCount(count || 0);
+      setLimitLoading(false);
+    }
+    loadPlanAndCount();
+  }, []);
 
   const generatePreview = async (url: string) => {
     if (!url.trim()) {
@@ -74,15 +126,17 @@ export default function NewQRPage() {
       return;
     }
 
-    // 既存の動的QR数チェック（無料プラン上限3個）
+    // プランに応じた動的QR数チェック
     const { count } = await supabase
       .from("qr_codes")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("type", "dynamic");
 
-    if ((count || 0) >= 3) {
-      setError("無料プランでは動的QRコードは3個まで作成できます。");
+    if ((count || 0) >= limit) {
+      setError(
+        `${PLAN_LABELS[currentPlan]}プランでは動的QRコードは${limit}個まで作成できます。プランをアップグレードしてください。`
+      );
       setLoading(false);
       return;
     }
@@ -108,7 +162,39 @@ export default function NewQRPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-8">動的QRコードを作成</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold">動的QRコードを作成</h1>
+        {!limitLoading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span className="font-medium">{dynamicCount} / {limit}</span>
+            <span className="text-gray-400">({PLAN_LABELS[currentPlan]})</span>
+          </div>
+        )}
+      </div>
+
+      {/* 上限到達警告 */}
+      {!limitLoading && isAtLimit && (
+        <div className="mb-6 rounded-xl bg-gradient-to-r from-sky-500/10 via-cyan-500/10 to-emerald-500/10 border border-sky-200 p-5">
+          <div className="flex items-start gap-3">
+            <Crown className="w-5 h-5 text-sky-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold text-gray-800 mb-1">
+                {PLAN_LABELS[currentPlan]}プランの上限に達しました
+              </p>
+              <p className="text-sm text-gray-500 mb-3">
+                動的QRコードは{limit}個まで作成できます。さらに作成するにはプランをアップグレードしてください。
+              </p>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 hover:shadow-lg hover:shadow-sky-500/20 transition-all"
+              >
+                <Crown className="w-4 h-4" />
+                プランをアップグレード
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Form */}
@@ -206,10 +292,16 @@ export default function NewQRPage() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 hover:shadow-lg hover:shadow-sky-500/30 transition-all disabled:opacity-50"
+            disabled={loading || isAtLimit || limitLoading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 hover:shadow-lg hover:shadow-sky-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "QRコードを作成"}
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isAtLimit ? (
+              "上限に達しています"
+            ) : (
+              "QRコードを作成"
+            )}
           </button>
         </form>
 

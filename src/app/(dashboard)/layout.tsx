@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, PlusCircle, LogOut, QrCode } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, QrCode, Crown } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "ダッシュボード", Icon: LayoutDashboard },
   { href: "/qr/new", label: "QR作成", Icon: PlusCircle },
+  { href: "/pricing", label: "プラン", Icon: Crown },
 ];
 
 export default function DashboardLayout({
