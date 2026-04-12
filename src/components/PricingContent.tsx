@@ -10,6 +10,8 @@ const plans = [
     price: "¥0",
     period: "",
     description: "まずは試してみたい方に",
+    planType: "free",
+    priceId: null,
     features: [
       { label: "動的QRコード", value: "3個" },
       { label: "スキャン数/月", value: "500回" },
@@ -21,13 +23,15 @@ const plans = [
     cta: "無料で始める",
     ctaHref: "/signup",
     highlighted: false,
-    available: true,
+    isPaid: false,
   },
   {
     name: "Starter",
     price: "¥980",
     period: "/月",
     description: "個人事業主・小規模チーム向け",
+    planType: "starter",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || null,
     features: [
       { label: "動的QRコード", value: "20個" },
       { label: "スキャン数/月", value: "10,000回" },
@@ -36,16 +40,18 @@ const plans = [
       { label: "詳細アナリティクス", value: true },
       { label: "カスタムデザイン", value: true },
     ],
-    cta: "近日公開",
+    cta: "Starterを始める",
     ctaHref: "#",
     highlighted: false,
-    available: false,
+    isPaid: true,
   },
   {
     name: "Business",
     price: "¥2,980",
     period: "/月",
     description: "成長中のビジネスに最適",
+    planType: "business",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || null,
     features: [
       { label: "動的QRコード", value: "100個" },
       { label: "スキャン数/月", value: "100,000回" },
@@ -54,16 +60,18 @@ const plans = [
       { label: "高度なアナリティクス", value: true },
       { label: "カスタムデザイン", value: true },
     ],
-    cta: "近日公開",
+    cta: "Businessを始める",
     ctaHref: "#",
     highlighted: true,
-    available: false,
+    isPaid: true,
   },
   {
     name: "Pro",
     price: "¥9,800",
     period: "/月",
     description: "大規模運用・開発チーム向け",
+    planType: "pro",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || null,
     features: [
       { label: "動的QRコード", value: "500個" },
       { label: "スキャン数/月", value: "無制限" },
@@ -72,10 +80,10 @@ const plans = [
       { label: "高度なアナリティクス", value: true },
       { label: "優先サポート", value: true },
     ],
-    cta: "近日公開",
+    cta: "Proを始める",
     ctaHref: "#",
     highlighted: false,
-    available: false,
+    isPaid: true,
   },
 ];
 
@@ -137,6 +145,29 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function PricingContent() {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const handleSubscribe = async (planType: string, priceId: string | null) => {
+    if (!priceId) return;
+    setLoading(planType);
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, planType }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (res.status === 401) {
+        window.location.href = "/login";
+      }
+    } catch {
+      alert("エラーが発生しました。もう一度お試しください。");
+    }
+    setLoading(null);
+  };
+
   return (
     <main className="pt-32 pb-20 px-6">
       {/* Hero */}
@@ -210,20 +241,25 @@ export default function PricingContent() {
               ))}
             </ul>
 
-            {plan.available ? (
+            {plan.isPaid ? (
+              <button
+                onClick={() => handleSubscribe(plan.planType, plan.priceId)}
+                disabled={loading === plan.planType || !plan.priceId}
+                className={`block w-full text-center px-5 py-3 rounded-full text-sm font-semibold transition-all hover:-translate-y-0.5 ${
+                  plan.priceId
+                    ? "text-white bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 hover:shadow-lg hover:shadow-sky-500/30"
+                    : "text-gray-400 bg-gray-100 cursor-not-allowed"
+                } disabled:opacity-50`}
+              >
+                {loading === plan.planType ? "処理中..." : plan.priceId ? plan.cta : "近日公開"}
+              </button>
+            ) : (
               <a
                 href={plan.ctaHref}
                 className="block text-center px-5 py-3 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-500 hover:shadow-lg hover:shadow-sky-500/30 transition-all hover:-translate-y-0.5"
               >
                 {plan.cta}
               </a>
-            ) : (
-              <button
-                disabled
-                className="block w-full text-center px-5 py-3 rounded-full text-sm font-semibold text-gray-400 bg-gray-100 cursor-not-allowed"
-              >
-                {plan.cta}
-              </button>
             )}
           </motion.div>
         ))}
