@@ -49,9 +49,37 @@ export default async function BlogPostPage({ params }: Props) {
     )
     .slice(0, 3);
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      "@type": "Organization",
+      name: "合同会社SARVEST",
+      url: "https://sarvest.jp",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "合同会社SARVEST",
+      url: "https://sarvest.jp",
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `https://qrift.sarvest.jp/blog/${slug}`,
+    },
+    keywords: post.tags,
+  };
+
   return (
     <>
       <Header />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <main className="pt-28 pb-20 px-6 relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-sky-50/30 via-white to-white" />

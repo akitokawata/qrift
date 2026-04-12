@@ -29,6 +29,32 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className={`${inter.className} h-full antialiased`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "合同会社SARVEST",
+              url: "https://sarvest.jp",
+              logo: "https://qrift.sarvest.jp/icon.svg",
+              contactPoint: {
+                "@type": "ContactPoint",
+                email: "info@sarvest.jp",
+                contactType: "customer service",
+                availableLanguage: "Japanese",
+              },
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "大阪市",
+                addressRegion: "大阪府",
+                addressCountry: "JP",
+              },
+            }),
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

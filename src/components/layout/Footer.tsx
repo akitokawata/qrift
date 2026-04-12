@@ -8,15 +8,18 @@ export default function Footer() {
           <span className="text-xl font-extrabold gradient-text">QRift</span>
           <span className="text-sm text-gray-400">by SARVEST</span>
         </div>
-        <div className="flex items-center gap-6 text-sm text-gray-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500">
           <Link href="https://sarvest.jp" target="_blank" className="hover:text-sky-600 transition-colors">
             SARVEST
           </Link>
-          <Link href="https://sarvest.jp/privacy" target="_blank" className="hover:text-sky-600 transition-colors">
+          <Link href="/privacy" className="hover:text-sky-600 transition-colors">
             プライバシーポリシー
           </Link>
-          <Link href="https://sarvest.jp/terms" target="_blank" className="hover:text-sky-600 transition-colors">
+          <Link href="/terms" className="hover:text-sky-600 transition-colors">
             利用規約
+          </Link>
+          <Link href="/tokushoho" className="hover:text-sky-600 transition-colors">
+            特定商取引法
           </Link>
         </div>
         <p className="text-xs text-gray-400">
